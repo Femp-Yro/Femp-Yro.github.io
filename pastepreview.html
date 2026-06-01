@@ -1,0 +1,87 @@
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body, html { background: #000 !important; }
+#root { background: #000; min-height: 500px; }
+button { background: #1a1a1a !important; border: 0.5px solid #444 !important; color: #ccc !important; border-radius: 8px; padding: 8px 0; font-size: 14px; cursor: pointer; }
+button:hover { background: #262626 !important; }
+kbd { background: #1a1a1a; border: 0.5px solid #555; border-radius: 6px; padding: 2px 8px; font-family: monospace; font-size: 13px; color: #ccc; }
+</style>
+
+<div id="root" style="background:#131313; min-height:500px; padding: 2rem; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+  <h2 class="sr-only">Paste an image using Ctrl+V to display it in the viewer below.</h2>
+
+  <div id="drop-zone" style="width:100%; max-width:580px; min-height:300px; border:1.5px dashed #444; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:2rem; transition: border-color 0.2s, background 0.2s;">
+    <i class="ti ti-clipboard" style="font-size:44px; color:#555;" aria-hidden="true"></i>
+    <p style="font-size:15px; color:#999; text-align:center;">Press <kbd>Ctrl+V</kbd> to paste an image</p>
+    <p style="font-size:13px; color:#555; text-align:center;">Also accepts drag & drop</p>
+  </div>
+
+  <div id="image-wrapper" style="display:none; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:580px;">
+    <img id="pasted-img" src="" alt="Pasted image" style="width:100%; border-radius:10px; border:0.5px solid #333; display:block;" />
+    <div style="display:flex; gap:10px; width:100%;">
+      <button onclick="clearImage()" style="flex:1;">
+        <i class="ti ti-trash" style="font-size:15px; vertical-align:-2px; margin-right:6px;" aria-hidden="true"></i>Clear
+      </button>
+      <button onclick="downloadImage()" style="flex:1;">
+        <i class="ti ti-download" style="font-size:15px; vertical-align:-2px; margin-right:6px;" aria-hidden="true"></i>Download
+      </button>
+    </div>
+    <p id="img-meta" style="font-size:12px; color:#555;"></p>
+  </div>
+
+  <div id="toast" style="position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:#1a1a1a; border:0.5px solid #444; border-radius:8px; padding:8px 20px; font-size:13px; color:#aaa; opacity:0; pointer-events:none; transition:opacity 0.2s, transform 0.2s; white-space:nowrap;"></div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const imageWrapper = document.getElementById('image-wrapper');
+const pastedImg = document.getElementById('pasted-img');
+const imgMeta = document.getElementById('img-meta');
+const toast = document.getElementById('toast');
+let currentBlob = null;
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(20px)'; }, 2000);
+}
+
+function handleImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) { showToast('No image found'); return; }
+  currentBlob = file;
+  pastedImg.src = URL.createObjectURL(file);
+  pastedImg.onload = () => {
+    imgMeta.textContent = `${pastedImg.naturalWidth} × ${pastedImg.naturalHeight} px · ${(file.size/1024).toFixed(1)} KB · ${file.type}`;
+  };
+  dropZone.style.display = 'none';
+  imageWrapper.style.display = 'flex';
+  showToast('Image loaded');
+}
+
+function clearImage() {
+  pastedImg.src = ''; currentBlob = null;
+  imageWrapper.style.display = 'none';
+  dropZone.style.display = 'flex';
+}
+
+function downloadImage() {
+  if (!currentBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(currentBlob);
+  a.download = `pasted-image.${currentBlob.type.split('/')[1] || 'png'}`;
+  a.click();
+  showToast('Downloading…');
+}
+
+document.addEventListener('paste', (e) => {
+  for (const item of e.clipboardData?.items || []) {
+    if (item.type.startsWith('image/')) { handleImageFile(item.getAsFile()); return; }
+  }
+  showToast('No image in clipboard');
+});
+
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor='#888'; dropZone.style.background='#111'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='#444'; dropZone.style.background=''; });
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor='#444'; dropZone.style.background=''; handleImageFile(e.dataTransfer.files[0]); });
+</script>
